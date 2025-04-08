@@ -19,21 +19,14 @@ import (
 )
 
 var (
-	httpRequestCounter otelmetric.Int64Counter
+	HttpRequestCounter otelmetric.Int64Counter
 	Tracer             oteltrace.Tracer
 	Meter              otelmetric.Meter
 )
 
+// InitTracer sets up the OpenTelemetry tracer provider with OTLP exporter
 func InitTracer(serviceName string) func() {
 	ctx := context.Background()
-	// Create stdout exporter to see traces in the console
-	// stdoutExporter, err := stdouttrace.New(
-	// 	stdouttrace.WithPrettyPrint(),
-	// 	stdouttrace.WithWriter(os.Stdout),
-	// )
-	// if err != nil {
-	// 	log.Fatalf("Failed to create stdout exporter: %v", err)
-	// }
 
 	// Create OTLP exporter
 	otlpExporter, err := otlptracegrpc.New(ctx,
@@ -53,7 +46,7 @@ func InitTracer(serviceName string) func() {
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter),
 		sdktrace.WithResource(resources),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()), //decide on sampling
+		sdktrace.WithSampler(sdktrace.AlwaysSample()), //FIX THIS decide on sampling
 	)
 
 	otel.SetTracerProvider(provider)
@@ -67,11 +60,11 @@ func InitTracer(serviceName string) func() {
 	}
 }
 
-// initMeterProvider sets up the OpenTelemetry meter provider with Prometheus exporter
+// InitMeterProvider sets up the OpenTelemetry meter provider with OTLP exporter
 func InitMeterProvider(serviceName string) (func(), error) {
 	ctx := context.Background()
 
-	// Create OTLP exporter (instead of direct Prometheus exporter)
+	// Create OTLP exporter
 	otlpExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint("otel-collector:4317"), //"alloy:4317"),
 		otlpmetricgrpc.WithInsecure(),
@@ -99,11 +92,6 @@ func InitMeterProvider(serviceName string) (func(), error) {
 	otel.SetMeterProvider(meterProvider)
 	//meter = meterProvider.Meter("coffee-server")
 
-	// Initialize our metrics
-	// if err := initMetrics(); err != nil {
-	// 	return nil, fmt.Errorf("failed to initialize metrics: %w", err)
-	// }
-
 	Meter = otel.Meter(serviceName)
 
 	initDefaultMetrics()
@@ -118,10 +106,10 @@ func InitMeterProvider(serviceName string) (func(), error) {
 }
 
 func init() {
-	prop := newPropagator()
-	otel.SetTextMapPropagator(prop)
+	otel.SetTextMapPropagator(newPropagator())
 }
 
+// newPropagator creates a new composite text map propagator
 func newPropagator() propagation.TextMapPropagator {
 	return propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
@@ -129,10 +117,11 @@ func newPropagator() propagation.TextMapPropagator {
 	)
 }
 
+// initDefaultMetrics initializes default metrics (e.g. HTTP request counter)
+// and registers them with the global meter provider.
 func initDefaultMetrics() {
-	// Create counter for HTTP requests
 	var err error
-	httpRequestCounter, err = Meter.Int64Counter(
+	HttpRequestCounter, err = Meter.Int64Counter(
 		"http_server_duration_count",
 		otelmetric.WithDescription("Number of HTTP requests"),
 		otelmetric.WithUnit("{request}"),
