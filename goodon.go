@@ -9,11 +9,19 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	otelmetric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
+)
+
+var (
+	httpRequestCounter otelmetric.Int64Counter
+	tracer             oteltrace.Tracer
+	meter              otelmetric.Meter
 )
 
 func InitTracer(serviceName string) func() {
@@ -49,6 +57,7 @@ func InitTracer(serviceName string) func() {
 	)
 
 	otel.SetTracerProvider(provider)
+	tracer = otel.Tracer(serviceName)
 
 	return func() {
 		ctx := context.Background()
@@ -59,7 +68,7 @@ func InitTracer(serviceName string) func() {
 }
 
 // initMeterProvider sets up the OpenTelemetry meter provider with Prometheus exporter
-func InitMeterProvider() (func(), error) {
+func InitMeterProvider(serviceName string) (func(), error) {
 	ctx := context.Background()
 
 	// Create OTLP exporter (instead of direct Prometheus exporter)
@@ -95,6 +104,10 @@ func InitMeterProvider() (func(), error) {
 	// 	return nil, fmt.Errorf("failed to initialize metrics: %w", err)
 	// }
 
+	meter = otel.Meter(serviceName)
+
+	initDefaultMetrics()
+
 	// Return a function to shut down the meter provider
 	return func() {
 		shutdownCtx := context.Background()
@@ -114,4 +127,17 @@ func newPropagator() propagation.TextMapPropagator {
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	)
+}
+
+func initDefaultMetrics() {
+	// Create counter for HTTP requests
+	var err error
+	httpRequestCounter, err = meter.Int64Counter(
+		"http_server_duration_count",
+		otelmetric.WithDescription("Number of HTTP requests"),
+		otelmetric.WithUnit("{request}"),
+	)
+	if err != nil {
+		fmt.Errorf("failed to create HTTP request counter: %w", err)
+	}
 }
