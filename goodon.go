@@ -4,28 +4,28 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
-func InitTracer() func() {
+func InitTracer(serviceName string) func() {
 	ctx := context.Background()
 	// Create stdout exporter to see traces in the console
-	stdoutExporter, err := stdouttrace.New(
-		stdouttrace.WithPrettyPrint(),
-		stdouttrace.WithWriter(os.Stdout),
-	)
-	if err != nil {
-		log.Fatalf("Failed to create stdout exporter: %v", err)
-	}
+	// stdoutExporter, err := stdouttrace.New(
+	// 	stdouttrace.WithPrettyPrint(),
+	// 	stdouttrace.WithWriter(os.Stdout),
+	// )
+	// if err != nil {
+	// 	log.Fatalf("Failed to create stdout exporter: %v", err)
+	// }
 
 	// Create OTLP exporter
 	otlpExporter, err := otlptracegrpc.New(ctx,
@@ -36,10 +36,15 @@ func InitTracer() func() {
 		log.Fatalf("Failed to create OTLP trace exporter: %v", err)
 	}
 
+	resources := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceName(serviceName),
+	)
+
 	// Use both exporters
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(stdoutExporter),
 		sdktrace.WithBatcher(otlpExporter),
+		sdktrace.WithResource(resources),
 		sdktrace.WithSampler(sdktrace.AlwaysSample()), //decide on sampling
 	)
 
