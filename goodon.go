@@ -12,7 +12,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-func initTracer() func() {
+func InitTracer() func() {
 	ctx := context.Background()
 	// Create stdout exporter to see traces in the console
 	stdoutExporter, err := stdouttrace.New(
@@ -52,7 +52,6 @@ func initTracer() func() {
 func init() {
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
-	initTracer()
 }
 
 func newPropagator() propagation.TextMapPropagator {
