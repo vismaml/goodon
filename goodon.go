@@ -2,13 +2,17 @@ package goodon
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -47,6 +51,52 @@ func InitTracer() func() {
 			log.Printf("Error shutting down tracer provider: %v", err)
 		}
 	}
+}
+
+// initMeterProvider sets up the OpenTelemetry meter provider with Prometheus exporter
+func InitMeterProvider() (func(), error) {
+	ctx := context.Background()
+
+	// Create OTLP exporter (instead of direct Prometheus exporter)
+	otlpExporter, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithEndpoint("otel-collector:4317"), //"alloy:4317"),
+		otlpmetricgrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
+	}
+
+	// Create metric reader with periodic export to the collector
+	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(5*time.Second))
+
+	// resources := resource.NewWithAttributes(
+	// 	semconv.SchemaURL,
+	// 	semconv.ServiceName("coffee-server"),
+	// 	semconv.ServiceVersion("1.0.0"),
+	// )
+
+	// Create a new MeterProvider with the OTLP exporter
+	meterProvider := metric.NewMeterProvider(
+		metric.WithReader(reader),
+		//metric.WithResource(resources),
+	)
+
+	// Set the global MeterProvider
+	otel.SetMeterProvider(meterProvider)
+	//meter = meterProvider.Meter("coffee-server")
+
+	// Initialize our metrics
+	// if err := initMetrics(); err != nil {
+	// 	return nil, fmt.Errorf("failed to initialize metrics: %w", err)
+	// }
+
+	// Return a function to shut down the meter provider
+	return func() {
+		shutdownCtx := context.Background()
+		if err := meterProvider.Shutdown(shutdownCtx); err != nil {
+			fmt.Errorf("Error shutting down meter provider: %v", err)
+		}
+	}, nil
 }
 
 func init() {
