@@ -20,8 +20,8 @@ import (
 
 var (
 	httpRequestCounter otelmetric.Int64Counter
-	tracer             oteltrace.Tracer
-	meter              otelmetric.Meter
+	Tracer             oteltrace.Tracer
+	Meter              otelmetric.Meter
 )
 
 func InitTracer(serviceName string) func() {
@@ -57,7 +57,7 @@ func InitTracer(serviceName string) func() {
 	)
 
 	otel.SetTracerProvider(provider)
-	tracer = otel.Tracer(serviceName)
+	Tracer = otel.Tracer(serviceName)
 
 	return func() {
 		ctx := context.Background()
@@ -104,7 +104,7 @@ func InitMeterProvider(serviceName string) (func(), error) {
 	// 	return nil, fmt.Errorf("failed to initialize metrics: %w", err)
 	// }
 
-	meter = otel.Meter(serviceName)
+	Meter = otel.Meter(serviceName)
 
 	initDefaultMetrics()
 
@@ -132,7 +132,7 @@ func newPropagator() propagation.TextMapPropagator {
 func initDefaultMetrics() {
 	// Create counter for HTTP requests
 	var err error
-	httpRequestCounter, err = meter.Int64Counter(
+	httpRequestCounter, err = Meter.Int64Counter(
 		"http_server_duration_count",
 		otelmetric.WithDescription("Number of HTTP requests"),
 		otelmetric.WithUnit("{request}"),
