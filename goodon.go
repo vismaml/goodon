@@ -3,7 +3,6 @@ package goodon
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -16,6 +15,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 var (
@@ -24,17 +24,40 @@ var (
 	Meter              otelmetric.Meter
 )
 
+const (
+	alloyPort         = "4317"
+	otelCollectorPort = "4317"
+)
+
+func StartTelemetryWihDefaults(serviceName string) (func(), error) {
+	shutdownTracer, err := InitTracer(serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
+	}
+
+	shutdownMeter, err := InitMeterProvider(serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize meter provider: %w", err)
+	}
+
+	return func() {
+		shutdownTracer()
+		shutdownMeter()
+	}, nil
+}
+
 // InitTracer sets up the OpenTelemetry tracer provider with OTLP exporter
-func InitTracer(serviceName string) func() {
+func InitTracer(serviceName string) (func(), error) {
 	ctx := context.Background()
 
 	// Create OTLP exporter
 	otlpExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint("alloy:4317"), // FIX THIS
-		otlptracegrpc.WithInsecure(),             // FIX THIS
+		otlptracegrpc.WithEndpoint("alloy:"+alloyPort), // FIX THIS
+		otlptracegrpc.WithInsecure(),                   // FIX THIS
 	)
 	if err != nil {
-		log.Fatalf("Failed to create OTLP trace exporter: %v", err)
+		//log.Fatalf("Failed to create OTLP trace exporter: %v", err)
+		return nil, err
 	}
 
 	resources := resource.NewWithAttributes(
@@ -52,12 +75,14 @@ func InitTracer(serviceName string) func() {
 	otel.SetTracerProvider(provider)
 	Tracer = otel.Tracer(serviceName)
 
+	otel.SetTextMapPropagator(newPropagator())
+
 	return func() {
 		ctx := context.Background()
 		if err := provider.Shutdown(ctx); err != nil {
-			log.Printf("Error shutting down tracer provider: %v", err)
+			zap.L().Fatal("Error shutting down tracer provider", zap.Error(err))
 		}
-	}
+	}, nil
 }
 
 // InitMeterProvider sets up the OpenTelemetry meter provider with OTLP exporter
@@ -66,8 +91,8 @@ func InitMeterProvider(serviceName string) (func(), error) {
 
 	// Create OTLP exporter
 	otlpExporter, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpoint("otel-collector:4317"), //"alloy:4317"),
-		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint("otel-collector:"+otelCollectorPort), //"alloy:4317"),
+		otlpmetricgrpc.WithInsecure(),                                    // FIX THIS
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
@@ -76,16 +101,15 @@ func InitMeterProvider(serviceName string) (func(), error) {
 	// Create metric reader with periodic export to the collector
 	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(5*time.Second))
 
-	// resources := resource.NewWithAttributes(
-	// 	semconv.SchemaURL,
-	// 	semconv.ServiceName("coffee-server"),
-	// 	semconv.ServiceVersion("1.0.0"),
-	// )
+	resources := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceName(serviceName),
+	)
 
 	// Create a new MeterProvider with the OTLP exporter
 	meterProvider := metric.NewMeterProvider(
 		metric.WithReader(reader),
-		//metric.WithResource(resources),
+		metric.WithResource(resources),
 	)
 
 	// Set the global MeterProvider
@@ -100,13 +124,9 @@ func InitMeterProvider(serviceName string) (func(), error) {
 	return func() {
 		shutdownCtx := context.Background()
 		if err := meterProvider.Shutdown(shutdownCtx); err != nil {
-			fmt.Errorf("Error shutting down meter provider: %v", err)
+			zap.L().Fatal("Error shutting down meter provider", zap.Error(err))
 		}
 	}, nil
-}
-
-func init() {
-	otel.SetTextMapPropagator(newPropagator())
 }
 
 // newPropagator creates a new composite text map propagator
@@ -127,6 +147,6 @@ func initDefaultMetrics() {
 		otelmetric.WithUnit("{request}"),
 	)
 	if err != nil {
-		fmt.Errorf("failed to create HTTP request counter: %w", err)
+		zap.L().Fatal("failed to create HTTP request counter", zap.Error(err))
 	}
 }
