@@ -15,7 +15,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 var (
@@ -29,7 +28,8 @@ const (
 	otelCollectorPort = "4317"
 )
 
-func StartTelemetryWihDefaults(serviceName string) (func(), error) {
+// StartTelemetryWihDefaults initializes OpenTelemetry with default settings
+func StartTelemetryWithDefaults(serviceName string) (func(), error) {
 	shutdownTracer, err := InitTracer(serviceName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
@@ -47,17 +47,16 @@ func StartTelemetryWihDefaults(serviceName string) (func(), error) {
 }
 
 // InitTracer sets up the OpenTelemetry tracer provider with OTLP exporter
-func InitTracer(serviceName string) (func(), error) {
+func InitTracer(serviceName string) (func() error, error) {
 	ctx := context.Background()
 
-	// Create OTLP exporter
+	// Create OTLP trace exporter
 	otlpExporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint("alloy:"+alloyPort), // FIX THIS
 		otlptracegrpc.WithInsecure(),                   // FIX THIS
 	)
 	if err != nil {
-		//log.Fatalf("Failed to create OTLP trace exporter: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to create OTLP trace exporter %w", err)
 	}
 
 	resources := resource.NewWithAttributes(
@@ -65,11 +64,10 @@ func InitTracer(serviceName string) (func(), error) {
 		semconv.ServiceName(serviceName),
 	)
 
-	// Use both exporters
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter),
 		sdktrace.WithResource(resources),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()), //FIX THIS decide on sampling
+		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(0.7)),
 	)
 
 	otel.SetTracerProvider(provider)
@@ -77,16 +75,17 @@ func InitTracer(serviceName string) (func(), error) {
 
 	otel.SetTextMapPropagator(newPropagator())
 
-	return func() {
+	return func() error {
 		ctx := context.Background()
 		if err := provider.Shutdown(ctx); err != nil {
-			zap.L().Fatal("Error shutting down tracer provider", zap.Error(err))
+			return fmt.Errorf("Error shutting down tracer provider: %w", err)
 		}
+		return nil
 	}, nil
 }
 
 // InitMeterProvider sets up the OpenTelemetry meter provider with OTLP exporter
-func InitMeterProvider(serviceName string) (func(), error) {
+func InitMeterProvider(serviceName string) (func() error, error) {
 	ctx := context.Background()
 
 	// Create OTLP exporter
@@ -99,7 +98,7 @@ func InitMeterProvider(serviceName string) (func(), error) {
 	}
 
 	// Create metric reader with periodic export to the collector
-	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(5*time.Second))
+	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(60*time.Second))
 
 	resources := resource.NewWithAttributes(
 		semconv.SchemaURL,
@@ -118,14 +117,18 @@ func InitMeterProvider(serviceName string) (func(), error) {
 
 	Meter = otel.Meter(serviceName)
 
-	initDefaultMetrics()
+	err = initDefaultMetrics()
+	if err != nil {
+		return nil, fmt.Errorf("failed to init default metrics: %w", err)
+	}
 
 	// Return a function to shut down the meter provider
-	return func() {
+	return func() error {
 		shutdownCtx := context.Background()
 		if err := meterProvider.Shutdown(shutdownCtx); err != nil {
-			zap.L().Fatal("Error shutting down meter provider", zap.Error(err))
+			return fmt.Errorf("Error shutting down meter provider: %w", err)
 		}
+		return nil
 	}, nil
 }
 
@@ -139,7 +142,7 @@ func newPropagator() propagation.TextMapPropagator {
 
 // initDefaultMetrics initializes default metrics (e.g. HTTP request counter)
 // and registers them with the global meter provider.
-func initDefaultMetrics() {
+func initDefaultMetrics() error {
 	var err error
 	HttpRequestCounter, err = Meter.Int64Counter(
 		"http_server_duration_count",
@@ -147,6 +150,8 @@ func initDefaultMetrics() {
 		otelmetric.WithUnit("{request}"),
 	)
 	if err != nil {
-		zap.L().Fatal("failed to create HTTP request counter", zap.Error(err))
+		return fmt.Errorf("failed to create HTTP request counter: %w", err)
+
 	}
+	return nil
 }
