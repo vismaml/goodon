@@ -117,7 +117,6 @@ func InitMeterProvider(serviceName string) (func() error, error) {
 
 	Meter = otel.Meter(serviceName)
 
-	err = initDefaultMetrics()
 	if err != nil {
 		return nil, fmt.Errorf("failed to init default metrics: %w", err)
 	}
@@ -138,20 +137,4 @@ func newPropagator() propagation.TextMapPropagator {
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	)
-}
-
-// initDefaultMetrics initializes default metrics (e.g. HTTP request counter)
-// and registers them with the global meter provider.
-func initDefaultMetrics() error {
-	var err error
-	HttpRequestCounter, err = Meter.Int64Counter(
-		"http_server_duration_count",
-		otelmetric.WithDescription("Number of HTTP requests"),
-		otelmetric.WithUnit("{request}"),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP request counter: %w", err)
-
-	}
-	return nil
 }
