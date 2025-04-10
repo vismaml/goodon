@@ -18,24 +18,23 @@ import (
 )
 
 var (
-	HttpRequestCounter otelmetric.Int64Counter
-	Tracer             oteltrace.Tracer
-	Meter              otelmetric.Meter
+	Tracer oteltrace.Tracer
+	Meter  otelmetric.Meter
 )
 
 const (
-	alloyPort         = "4317"
-	otelCollectorPort = "4317"
+	alloyGrpcPort         = "4317"
+	otelCollectorGrpcPort = "4317"
 )
 
 // StartTelemetryWihDefaults initializes OpenTelemetry with default settings
-func StartTelemetryWithDefaults(serviceName string) (func(), error) {
-	shutdownTracer, err := InitTracer(serviceName)
+func StartTelemetryWithDefaults(serviceName string, backendIp string, traceFreq float64) (func(), error) {
+	shutdownTracer, err := InitTracer(serviceName, backendIp, traceFreq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}
 
-	shutdownMeter, err := InitMeterProvider(serviceName)
+	shutdownMeter, err := InitMeterProvider(serviceName, backendIp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize meter provider: %w", err)
 	}
@@ -47,16 +46,16 @@ func StartTelemetryWithDefaults(serviceName string) (func(), error) {
 }
 
 // InitTracer sets up the OpenTelemetry tracer provider with OTLP exporter
-func InitTracer(serviceName string) (func() error, error) {
+func InitTracer(serviceName string, backendIp string, traceFreq float64) (func() error, error) {
 	ctx := context.Background()
 
 	// Create OTLP trace exporter
 	otlpExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint("alloy:"+alloyPort), // FIX THIS
-		otlptracegrpc.WithInsecure(),                   // FIX THIS
+		otlptracegrpc.WithEndpoint(backendIp+":"+otelCollectorGrpcPort),
+		otlptracegrpc.WithInsecure(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create OTLP trace exporter %w", err)
+		return nil, fmt.Errorf("failed to create OTLP trace exporter %w", err)
 	}
 
 	resources := resource.NewWithAttributes(
@@ -67,7 +66,7 @@ func InitTracer(serviceName string) (func() error, error) {
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter),
 		sdktrace.WithResource(resources),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(0.7)),
+		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(traceFreq)),
 	)
 
 	otel.SetTracerProvider(provider)
@@ -78,20 +77,20 @@ func InitTracer(serviceName string) (func() error, error) {
 	return func() error {
 		ctx := context.Background()
 		if err := provider.Shutdown(ctx); err != nil {
-			return fmt.Errorf("Error shutting down tracer provider: %w", err)
+			return fmt.Errorf("error shutting down tracer provider: %w", err)
 		}
 		return nil
 	}, nil
 }
 
 // InitMeterProvider sets up the OpenTelemetry meter provider with OTLP exporter
-func InitMeterProvider(serviceName string) (func() error, error) {
+func InitMeterProvider(serviceName string, backendIp string) (func() error, error) {
 	ctx := context.Background()
 
 	// Create OTLP exporter
 	otlpExporter, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpoint("otel-collector:"+otelCollectorPort), //"alloy:4317"),
-		otlpmetricgrpc.WithInsecure(),                                    // FIX THIS
+		otlpmetricgrpc.WithEndpoint(backendIp+":"+otelCollectorGrpcPort),
+		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
@@ -113,7 +112,6 @@ func InitMeterProvider(serviceName string) (func() error, error) {
 
 	// Set the global MeterProvider
 	otel.SetMeterProvider(meterProvider)
-	//meter = meterProvider.Meter("coffee-server")
 
 	Meter = otel.Meter(serviceName)
 
@@ -125,7 +123,7 @@ func InitMeterProvider(serviceName string) (func() error, error) {
 	return func() error {
 		shutdownCtx := context.Background()
 		if err := meterProvider.Shutdown(shutdownCtx); err != nil {
-			return fmt.Errorf("Error shutting down meter provider: %w", err)
+			return fmt.Errorf("error shutting down meter provider: %w", err)
 		}
 		return nil
 	}, nil
