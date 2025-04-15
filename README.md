@@ -13,5 +13,5 @@ Goodon is an OpenTelemetry initialization utility that simplifies setting up tra
 ## Installation
 
 ```go
-go get github.com/yourusername/goodon
+go get github.com/vismaml/goodon
 ```
