@@ -58,10 +58,20 @@ func InitTracer(serviceName string, backendIp string, traceFreq float64) (func()
 		return nil, fmt.Errorf("failed to create OTLP trace exporter %w", err)
 	}
 
-	resources := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName(serviceName),
+	resources, err := resource.New(
+		context.Background(),
+		resource.WithProcess(),   // Process info
+		resource.WithHost(),      // Host info
+		resource.WithContainer(), // Container info
+		resource.WithAttributes( // Manual attributes using semconv
+			semconv.ServiceName(serviceName),
+		),
 	)
+
+	// resources := resource.NewWithAttributes(
+	// 	semconv.SchemaURL,
+	// 	semconv.ServiceName(serviceName),
+	// )
 
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter),
