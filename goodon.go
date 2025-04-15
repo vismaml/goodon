@@ -115,10 +115,6 @@ func InitMeterProvider(serviceName string, backendIp string) (func() error, erro
 
 	Meter = otel.Meter(serviceName)
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to init default metrics: %w", err)
-	}
-
 	// Return a function to shut down the meter provider
 	return func() error {
 		shutdownCtx := context.Background()
