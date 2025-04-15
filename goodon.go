@@ -60,18 +60,12 @@ func InitTracer(serviceName string, backendIp string, traceFreq float64) (func()
 
 	resources, err := resource.New(
 		context.Background(),
-		resource.WithProcess(),   // Process info
 		resource.WithHost(),      // Host info
 		resource.WithContainer(), // Container info
 		resource.WithAttributes( // Manual attributes using semconv
 			semconv.ServiceName(serviceName),
 		),
 	)
-
-	// resources := resource.NewWithAttributes(
-	// 	semconv.SchemaURL,
-	// 	semconv.ServiceName(serviceName),
-	// )
 
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter),
@@ -109,9 +103,13 @@ func InitMeterProvider(serviceName string, backendIp string) (func() error, erro
 	// Create metric reader with periodic export to the collector
 	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(60*time.Second))
 
-	resources := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName(serviceName),
+	resources, err := resource.New(
+		context.Background(),
+		resource.WithHost(),      // Host info
+		resource.WithContainer(), // Container info
+		resource.WithAttributes( // Manual attributes using semconv
+			semconv.ServiceName(serviceName),
+		),
 	)
 
 	// Create a new MeterProvider with the OTLP exporter
