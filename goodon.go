@@ -37,9 +37,10 @@ var (
 )
 
 type GoodonConfig struct {
-	GRPCPort  string  `required:"true" split_words:"true"`
-	HostIp    string  `required:"true" split_words:"true"`
-	TraceRate float64 `required:"true" split_words:"true"`
+	GRPCPort           string  `required:"true" split_words:"true"`
+	HostIp             string  `required:"true" split_words:"true"`
+	TraceRate          float64 `required:"true" split_words:"true"`
+	GRPCMaxEdgeMsgSize int     `required:"true" split_words:"true"`
 }
 
 const (
@@ -200,9 +201,10 @@ func newResources(ctx context.Context, serviceName string) (*resource.Resource, 
 }
 
 // grpcOptions returns the default goodon gRPC server options
-func grpcOptions() []grpc.ServerOption {
+func grpcOptions(maxMsgSize int) []grpc.ServerOption {
 	return []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(15 << 20),
+		grpc.MaxRecvMsgSize(maxMsgSize),
+		grpc.MaxSendMsgSize(maxMsgSize),
 		grpc.ChainUnaryInterceptor(
 			grpc_prometheus.UnaryServerInterceptor,
 			grpc_ctxtags.UnaryServerInterceptor(
@@ -211,6 +213,15 @@ func grpcOptions() []grpc.ServerOption {
 			ctxvml.UnaryServerInterceptor(),
 			ctxtrace.UnaryServerInterceptor(),
 			grpc_zap.UnaryServerInterceptor(zapvml.Log, grpc_zap.WithLevels(zapvml.CodeToLevel)),
+		),
+		grpc.ChainStreamInterceptor(
+			grpc_prometheus.StreamServerInterceptor,
+			grpc_ctxtags.StreamServerInterceptor(
+				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
+			),
+			ctxvml.StreamServerInterceptor(),
+			ctxtrace.StreamServerInterceptor(),
+			grpc_zap.StreamServerInterceptor(zapvml.Log, grpc_zap.WithLevels(zapvml.CodeToLevel)),
 		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
@@ -237,8 +248,8 @@ func grpcWithAdditionalOptions(additionalOptions func() []grpc.ServerOption) []g
 	return options
 }
 
-func CreateGRPCServer() *grpc.Server {
-	opts := grpcOptions()
+func CreateGRPCServer(maxMsgSize int) *grpc.Server {
+	opts := grpcOptions(maxMsgSize)
 	server := grpc.NewServer(opts...)
 	grpc_prometheus.EnableHandlingTimeHistogram()
 	grpc_prometheus.Register(server)
