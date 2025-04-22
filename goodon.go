@@ -48,17 +48,11 @@ const (
 	otelCollectorGrpcPort = "4317"
 )
 
+// Initializes the gRPC server with default settings including logging, telemetry, and health checks.
 func StartWithDefaults(cfg GoodonConfig, serviceName string, server *grpc.Server, healthServ api_health.HealthServer) error {
 	// Setup logging
 	zap.ReplaceGlobals(zapvml.Log)
 	grpc_zap.ReplaceGrpcLogger(zapvml.Log)
-
-	// Setup Goodon
-	shutdownTelemetry, err := StartTelemetryWithDefaults(serviceName, cfg.HostIp, cfg.TraceRate)
-	defer shutdownTelemetry()
-	if err != nil {
-		return err
-	}
 
 	// Register: Health
 	api_health.RegisterHealthServer(server, healthServ)
