@@ -242,3 +242,11 @@ func grpcWithAdditionalOptions(additionalOptions func() []grpc.ServerOption) []g
 
 	return options
 }
+
+func CreateGRPCServer() *grpc.Server {
+	opts := grpcOptions()
+	server := grpc.NewServer(opts...)
+	grpc_prometheus.EnableHandlingTimeHistogram()
+	grpc_prometheus.Register(server)
+	return server
+}
