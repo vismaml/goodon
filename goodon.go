@@ -47,7 +47,7 @@ const (
 	otelCollectorGrpcPort = "4317"
 )
 
-func StartWithDefaults(cfg GoodonConfig, serviceName string, healthServ api_health.HealthServer) error {
+func StartWithDefaults(cfg GoodonConfig, serviceName string, server *grpc.Server, healthServ api_health.HealthServer) error {
 	// Setup logging
 	zap.ReplaceGlobals(zapvml.Log)
 	grpc_zap.ReplaceGrpcLogger(zapvml.Log)
@@ -58,12 +58,6 @@ func StartWithDefaults(cfg GoodonConfig, serviceName string, healthServ api_heal
 	if err != nil {
 		return err
 	}
-
-	// Setup gRPC server
-	opts := grpcOptions()
-	server := grpc.NewServer(opts...)
-	grpc_prometheus.EnableHandlingTimeHistogram()
-	grpc_prometheus.Register(server)
 
 	// Register: Health
 	api_health.RegisterHealthServer(server, healthServ)
