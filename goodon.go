@@ -200,7 +200,7 @@ func grpcOptions(maxMsgSize int) []grpc.ServerOption {
 		grpc.MaxRecvMsgSize(maxMsgSize),
 		grpc.MaxSendMsgSize(maxMsgSize),
 		grpc.ChainUnaryInterceptor(
-			grpc_prometheus.UnaryServerInterceptor,
+			//grpc_prometheus.UnaryServerInterceptor,
 			grpc_ctxtags.UnaryServerInterceptor(
 				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
 			),
@@ -209,7 +209,7 @@ func grpcOptions(maxMsgSize int) []grpc.ServerOption {
 			grpc_zap.UnaryServerInterceptor(zapvml.Log, grpc_zap.WithLevels(zapvml.CodeToLevel)),
 		),
 		grpc.ChainStreamInterceptor(
-			grpc_prometheus.StreamServerInterceptor,
+			//grpc_prometheus.StreamServerInterceptor,
 			grpc_ctxtags.StreamServerInterceptor(
 				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
 			),
