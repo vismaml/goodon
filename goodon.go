@@ -80,27 +80,6 @@ func grpcOptions(maxMsgSize int) []grpc.ServerOption {
 	}
 }
 
-// grpcWithAdditionalOptions returns the default goodon gRPC server options with additional options
-func grpcWithAdditionalOptions(additionalOptions func() []grpc.ServerOption) []grpc.ServerOption {
-	options := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(
-			grpc_ctxtags.UnaryServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
-			),
-			ctxvml.UnaryServerInterceptor(),
-			ctxtrace.UnaryServerInterceptor(),
-			grpc_zap.UnaryServerInterceptor(zapvml.Log, grpc_zap.WithLevels(zapvml.CodeToLevel)),
-		),
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-	}
-
-	if additionalOptions != nil {
-		options = append(options, additionalOptions()...)
-	}
-
-	return options
-}
-
 // NewGRPCServer creates a new gRPC server with the default gRPC options.
 // Takes a maxMsgSize parameter to set the maximum message size.
 func NewGRPCServer(maxMsgSize int) *grpc.Server {
