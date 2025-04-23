@@ -1,6 +1,6 @@
 # goodon
 
-Goodon is an OpenTelemetry initialization utility that simplifies setting up tracing and metrics in Go applications.
+Goodon is a Go utility library that simplifies setting up gRPC services with integrated OpenTelemetry observability.
 
 ## Features
 
@@ -9,6 +9,9 @@ Goodon is an OpenTelemetry initialization utility that simplifies setting up tra
 - Unified setup for both traces and metrics
 - Proper shutdown handling for clean resource management
 - Configurable sampling rates for traces
+- Integrated logging with Zap
+- Automatic tracing for gRPC requests
+- Graceful shutdown handling
 
 ## Installation
 
