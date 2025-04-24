@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/e-conomic/ctxtrace"
-	"github.com/e-conomic/ctxvml"
 	"github.com/e-conomic/zapvml"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -47,16 +46,15 @@ func StartWithDefaults(server *grpc.Server) error {
 	return res
 }
 
-// grpcOptions returns the default goodon gRPC server options
-func grpcOptions() []grpc.ServerOption {
-	return []grpc.ServerOption{
+// grpcOptions returns the default goodon gRPC server options with additional options
+func grpcOptions(additionalOptions func() []grpc.ServerOption) []grpc.ServerOption {
+	options := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(15 << 20),
 		grpc.MaxSendMsgSize(15 << 20),
 		grpc.ChainUnaryInterceptor(
 			grpc_ctxtags.UnaryServerInterceptor(
 				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
 			),
-			ctxvml.UnaryServerInterceptor(),
 			ctxtrace.UnaryServerInterceptor(),
 			grpc_zap.UnaryServerInterceptor(zapvml.Log, grpc_zap.WithLevels(zapvml.CodeToLevel)),
 		),
@@ -64,18 +62,24 @@ func grpcOptions() []grpc.ServerOption {
 			grpc_ctxtags.StreamServerInterceptor(
 				grpc_ctxtags.WithFieldExtractor(grpc_ctxtags.CodeGenRequestFieldExtractor),
 			),
-			ctxvml.StreamServerInterceptor(),
 			ctxtrace.StreamServerInterceptor(),
 			grpc_zap.StreamServerInterceptor(zapvml.Log, grpc_zap.WithLevels(zapvml.CodeToLevel)),
 		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
+
+	if additionalOptions != nil {
+		options = append(options, additionalOptions()...)
+	}
+
+	return options
 }
 
 // NewGRPCServer creates a new gRPC server with the default gRPC options.
-// Takes a maxMsgSize parameter to set the maximum message size.
-func NewGRPCServer() *grpc.Server {
-	opts := grpcOptions()
+// The additionalOptions parameter is a function that returns additional server options
+// and can be nil if no additional options are needed.
+func NewGRPCServer(additionalOptions func() []grpc.ServerOption) *grpc.Server {
+	opts := grpcOptions(additionalOptions)
 	server := grpc.NewServer(opts...)
 	return server
 }

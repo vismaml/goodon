@@ -34,7 +34,6 @@ require (
 
 require (
 	github.com/e-conomic/ctxtrace v1.0.3
-	github.com/e-conomic/ctxvml v0.0.5
 	github.com/e-conomic/zapvml v0.4.0
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

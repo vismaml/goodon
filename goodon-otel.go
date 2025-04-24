@@ -3,8 +3,6 @@ package goodon
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"runtime"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -45,17 +43,6 @@ func StartTelemetryWithDefaults(serviceName string, collectorIP string) (func(),
 		shutdownTracer()
 		shutdownMeter()
 	}, nil
-}
-
-// WithSpan is a utility function that wraps a function with OpenTelemetry span creation.
-// By default the function name is used as the span name.
-func WithSpan[T any](ctx context.Context, fn func(args ...any) T) func(args ...any) T {
-	return func(args ...any) T {
-		functionName := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-		_, span := Tracer.Start(ctx, functionName)
-		defer span.End()
-		return fn(args...)
-	}
 }
 
 // initTracer sets up the OpenTelemetry tracer provider with OTLP exporter
