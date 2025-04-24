@@ -3,6 +3,8 @@ package goodon
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"runtime"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -28,8 +30,8 @@ const (
 )
 
 // StartTelemetryWithDefaults initializes OpenTelemetry with default settings for traces and metrics.
-func StartTelemetryWithDefaults(serviceName string, collectorIP string, traceFreq float64) (func(), error) {
-	shutdownTracer, err := initTracer(serviceName, collectorIP, traceFreq)
+func StartTelemetryWithDefaults(serviceName string, collectorIP string) (func(), error) {
+	shutdownTracer, err := initTracer(serviceName, collectorIP, 0.05)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}
@@ -45,8 +47,19 @@ func StartTelemetryWithDefaults(serviceName string, collectorIP string, traceFre
 	}, nil
 }
 
+// WithSpan is a utility function that wraps a function with OpenTelemetry span creation.
+// By default the function name is used as the span name.
+func WithSpan[T any](fn func(context.Context) T) func(context.Context) T {
+	return func(ctx context.Context) T {
+		functionName := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+		_, span := Tracer.Start(ctx, functionName)
+		defer span.End()
+		return fn(ctx)
+	}
+}
+
 // initTracer sets up the OpenTelemetry tracer provider with OTLP exporter
-func initTracer(serviceName string, collectorIP string, traceFreq float64) (func() error, error) {
+func initTracer(serviceName string, collectorIP string, traceFreqency float64) (func() error, error) {
 	ctx := context.Background()
 
 	// Create OTLP trace exporter
@@ -66,7 +79,7 @@ func initTracer(serviceName string, collectorIP string, traceFreq float64) (func
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(otlpExporter),
 		sdktrace.WithResource(resources),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(traceFreq)),
+		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(traceFreqency)),
 	)
 
 	otel.SetTracerProvider(provider)
