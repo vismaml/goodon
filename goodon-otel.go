@@ -49,12 +49,12 @@ func StartTelemetryWithDefaults(serviceName string, collectorIP string) (func(),
 
 // WithSpan is a utility function that wraps a function with OpenTelemetry span creation.
 // By default the function name is used as the span name.
-func WithSpan[T any](fn func(context.Context) T) func(context.Context) T {
-	return func(ctx context.Context) T {
+func WithSpan[T any](ctx context.Context, fn func(args ...any) T) func(args ...any) T {
+	return func(args ...any) T {
 		functionName := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
 		_, span := Tracer.Start(ctx, functionName)
 		defer span.End()
-		return fn(ctx)
+		return fn(args...)
 	}
 }
 
