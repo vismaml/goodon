@@ -1,6 +1,7 @@
 package goodon
 
 import (
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -11,7 +12,6 @@ import (
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -19,34 +19,28 @@ type GoodonConfig struct {
 	HostIP string `required:"true" split_words:"true"`
 }
 
-// StartWithDefaults starts the gRPC server with default settings including logging, and health checks.
+// StartWithDefaults starts the gRPC server with default settings.
 func StartWithDefaults(server *grpc.Server) error {
-	// Setup logging
-	grpc_zap.ReplaceGrpcLogger(zapvml.Log)
-
 	// Graceful stop
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
-		zap.L().Info("graceful shutdown")
+		log.Println("graceful shutdown")
 		server.GracefulStop()
 	}()
 
-	// init
 	lis, err := net.Listen("tcp", ":"+"50051")
 	if err != nil {
 		return err
 	}
 	res := server.Serve(lis)
-	err = zapvml.Log.Sync()
-	if err != nil {
-		zap.L().Error("failed to sync zap logger", zap.Error(err))
-	}
 	return res
 }
 
-// grpcOptions returns the default goodon gRPC server options with additional options
+// grpcOptions returns the default goodon gRPC server options.
+// If the additionalOptions function is provided (non-nil), its returned options
+// will be appended to the defaults.
 func grpcOptions(additionalOptions func() []grpc.ServerOption) []grpc.ServerOption {
 	options := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(15 << 20),
