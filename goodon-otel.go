@@ -23,7 +23,6 @@ var (
 )
 
 const (
-	alloyGRPCPort         = "4317"
 	otelCollectorGRPCPort = "4317"
 )
 
