@@ -7,11 +7,9 @@ Goodon is a Go utility library that simplifies setting up gRPC services with int
 - Simple API for configuring OpenTelemetry components
 - Pre-configured OTLP exporters for sending telemetry data via gRPC
 - Unified setup for both traces and metrics
-- Proper shutdown handling for clean resource management
-- Configurable sampling rates for traces
-- Integrated logging with Zap
+- Proper OTel shutdown handling for clean resource management
 - Automatic tracing for gRPC requests
-- Graceful shutdown handling
+- Graceful gRPC server shutdown handling
 
 ## Installation
 
