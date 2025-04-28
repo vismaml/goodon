@@ -29,7 +29,7 @@ const (
 
 // StartTelemetryWithDefaults initializes OpenTelemetry with default settings for traces and metrics.
 func StartTelemetryWithDefaults(serviceName string, collectorIP string) (func(), error) {
-	shutdownTracer, err := initTracer(serviceName, collectorIP, 1)
+	shutdownTracer, err := initTracer(serviceName, collectorIP, 0.05)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
 	}
