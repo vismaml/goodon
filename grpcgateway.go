@@ -14,7 +14,7 @@ import (
 type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
 
 // StartHTTPGateway starts an HTTP gateway that proxies requests to the gRPC server.
-func StartHTTPGatewayWithDefaults(grpcPort, httpPort string, registerFuncs ...RegisterFunc) error {
+func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) error {
 	ctx := context.Background()
 
 	mux := runtime.NewServeMux(
