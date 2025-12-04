@@ -13,17 +13,28 @@ import (
 
 type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
 
-// StartHTTPGateway starts an HTTP gateway that proxies requests to the gRPC server.
+// StartHTTPGateway starts a gateway that proxies requests to translate HTTP/JSON requests into gRPC calls.
+// To start the gateway, call this function within a new goroutine and provide the gRPC functions to register.
+//
+// Example:
+//
+//	go func() {
+//		if err := goodon.StartHTTPGateway(cfg.GRPCPort, cfg.HTTPPort,
+//			annotatorpb.RegisterDocumentAnnotatorHandlerFromEndpoint,
+//		); err != nil && err != http.ErrServerClosed {
+//			zap.L().Error("HTTP gateway failed in <SERVICE NAME>", zap.Error(err))
+//		}
+//	}()
 func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) error {
 	ctx := context.Background()
 
 	mux := runtime.NewServeMux(
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
-				EmitUnpopulated: false,
+				EmitUnpopulated: false, // this option omits fields with zero values
 			},
 			UnmarshalOptions: protojson.UnmarshalOptions{
-				DiscardUnknown: true,
+				DiscardUnknown: true, // this option ignores unknown fields in the incoming JSON
 			},
 		}),
 	)
@@ -36,13 +47,12 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 		}
 	}
 
-	// Start HTTP server (and proxy calls to gRPC server endpoint)
 	server := &http.Server{
 		Addr:         ":" + httpPort,
 		Handler:      mux,
-		ReadTimeout:  10 * time.Minute,
-		WriteTimeout: 10 * time.Minute,
-		IdleTimeout:  10 * time.Minute,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	}
 	return server.ListenAndServe()
 }
