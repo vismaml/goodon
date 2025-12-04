@@ -22,7 +22,7 @@ type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint stri
 //		if err := goodon.StartHTTPGateway(cfg.GRPCPort, cfg.HTTPPort,
 //			annotatorpb.RegisterDocumentAnnotatorHandlerFromEndpoint,
 //		); err != nil && err != http.ErrServerClosed {
-//			zap.L().Error("HTTP gateway failed in <SERVICE NAME>", zap.Error(err))
+//			log.Fatalf("failed to start HTTP gateway: %v", err)
 //		}
 //	}()
 func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) error {
