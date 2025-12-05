@@ -2,11 +2,13 @@ package goodon
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -16,6 +18,8 @@ type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint stri
 
 // CustomHeaderMatcher forwards the "x-request-id" and "vml-username" headers to the gRPC metadata.
 func CustomHeaderMatcher(key string) (string, bool) {
+	fmt.Printf("Incoming header: %s\n", key)
+	zap.L().Warn("", zap.String("incoming herader", key))
 	lowerKey := strings.ToLower(key)
 	if lowerKey == "x-request-id" || lowerKey == "vml-username" {
 		return lowerKey, true
