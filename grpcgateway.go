@@ -14,10 +14,11 @@ import (
 
 type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
 
-// CustomHeaderMatcher forwards the "x-request-id" header to the gRPC metadata.
+// CustomHeaderMatcher forwards the "x-request-id" and "vml-username" headers to the gRPC metadata.
 func CustomHeaderMatcher(key string) (string, bool) {
-	if strings.ToLower(key) == "x-request-id" {
-		return key, true
+	lowerKey := strings.ToLower(key)
+	if lowerKey == "x-request-id" || lowerKey == "vml-username" {
+		return lowerKey, true
 	}
 	// This will preserve the default behavior of forwarding certain headers.
 	return runtime.DefaultHeaderMatcher(key)
