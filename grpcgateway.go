@@ -3,6 +3,7 @@ package goodon
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -12,6 +13,15 @@ import (
 )
 
 type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
+
+// CustomHeaderMatcher forwards the "x-request-id" header to the gRPC metadata.
+func CustomHeaderMatcher(key string) (string, bool) {
+	if strings.ToLower(key) == "x-request-id" {
+		return key, true
+	}
+	// This will preserve the default behavior of forwarding certain headers.
+	return runtime.DefaultHeaderMatcher(key)
+}
 
 // StartHTTPGateway starts a gateway that proxies requests to translate HTTP/JSON requests into gRPC calls.
 // To start the gateway, call this function within a new goroutine and provide the gRPC functions to register.
@@ -37,6 +47,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 				DiscardUnknown: true, // this option ignores unknown fields in the incoming JSON
 			},
 		}),
+		runtime.WithIncomingHeaderMatcher(CustomHeaderMatcher),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := "localhost:" + grpcPort
