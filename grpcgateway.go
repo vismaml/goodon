@@ -30,9 +30,9 @@ func customHeaderMatcher(key string) (string, bool) {
 //
 //	go func() {
 //		if err := goodon.StartHTTPGateway(cfg.GRPCPort, cfg.HTTPPort,
-//			annotatorpb.RegisterDocumentAnnotatorHandlerFromEndpoint,
+//			pb.RegisterHandlerFromEndpoint,
 //		); err != nil && err != http.ErrServerClosed {
-//			log.Fatalf("failed to start HTTP gateway: %v", err)
+//			// Your error handling logic
 //		}
 //	}()
 func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) error {
