@@ -14,8 +14,8 @@ import (
 
 type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
 
-// CustomHeaderMatcher forwards the "x-request-id" and "vml-username" headers to the gRPC metadata.
-func CustomHeaderMatcher(key string) (string, bool) {
+// customHeaderMatcher forwards the "x-request-id" and "vml-username" headers to the gRPC metadata.
+func customHeaderMatcher(key string) (string, bool) {
 	lowerKey := strings.ToLower(key)
 	if lowerKey == "x-request-id" || lowerKey == "vml-username" {
 		return lowerKey, true
@@ -47,7 +47,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 				DiscardUnknown: true, // this option ignores unknown fields in the incoming JSON
 			},
 		}),
-		runtime.WithIncomingHeaderMatcher(CustomHeaderMatcher),
+		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := "localhost:" + grpcPort
