@@ -45,7 +45,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 				EmitUnpopulated: false, // this option omits fields with zero values
 			},
 			UnmarshalOptions: protojson.UnmarshalOptions{
-				DiscardUnknown: false, // this option ignores unknown fields in the incoming JSON
+				DiscardUnknown: true, // this option ignores unknown fields in the incoming JSON
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
