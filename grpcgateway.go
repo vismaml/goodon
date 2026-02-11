@@ -41,6 +41,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 	mux := runtime.NewServeMux(
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   false,
 				EmitUnpopulated: false, // this option omits fields with zero values
 			},
 			UnmarshalOptions: protojson.UnmarshalOptions{
