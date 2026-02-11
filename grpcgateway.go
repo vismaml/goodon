@@ -1,7 +1,10 @@
 package goodon
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +16,28 @@ import (
 )
 
 type RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
+
+// requestLogger is a middleware that logs the incoming request body.
+func requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("failed to read request body: %v", err)
+			http.Error(w, "can't read body", http.StatusBadRequest)
+			return
+		}
+		r.Body.Close()
+
+		// Restore the body so it can be read again.
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		// Log the body.
+		log.Printf("incoming request body: %s", bodyBytes)
+
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+}
 
 // customHeaderMatcher forwards the "x-request-id" and "vml-username" headers to the gRPC metadata.
 func customHeaderMatcher(key string) (string, bool) {
@@ -44,7 +69,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 				EmitUnpopulated: false, // this option omits fields with zero values
 			},
 			UnmarshalOptions: protojson.UnmarshalOptions{
-				DiscardUnknown: true, // this option ignores unknown fields in the incoming JSON
+				DiscardUnknown: false, // this option ignores unknown fields in the incoming JSON
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
@@ -60,7 +85,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      mux,
+		Handler:      requestLogger(mux),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,
