@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -22,7 +22,7 @@ func requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("failed to read request body: %v", err)
+			zap.L().Warn("failed to read request body", zap.Error(err))
 			http.Error(w, "can't read body", http.StatusBadRequest)
 			return
 		}
@@ -32,7 +32,7 @@ func requestLogger(next http.Handler) http.Handler {
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		// Log the body.
-		log.Printf("incoming request body: %s", bodyBytes)
+		zap.L().Warn("incoming request body", zap.ByteString("body", bodyBytes))
 
 		// Call the next handler.
 		next.ServeHTTP(w, r)
