@@ -26,6 +26,12 @@ func customHeaderMatcher(key string) (string, bool) {
 // allowCORS allows Cross-Origin Resource Sharing.
 func allowCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The grpc-web wrapper handles CORS for gRPC-Web requests.
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc-web") {
+			h.ServeHTTP(w, r)
+			return
+		}
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
