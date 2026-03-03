@@ -73,7 +73,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      mux,
+		Handler:      allowCORS(mux),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,
