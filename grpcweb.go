@@ -25,10 +25,12 @@ func NewGRPCWebProxy(grpcServer *grpc.Server) *GRPCWebProxy {
 }
 
 // IsGRPCWebRequest returns true if the request is a gRPC-Web request
-// (either by content-type or by the grpc-web library's own detection).
+// (either by content-type, the grpc-web library's own detection, or a CORS preflight for gRPC-Web).
 func (p *GRPCWebProxy) IsGRPCWebRequest(r *http.Request) bool {
 	ct := r.Header.Get("Content-Type")
-	return strings.HasPrefix(ct, "application/grpc-web") || p.wrapped.IsGrpcWebRequest(r)
+	return strings.HasPrefix(ct, "application/grpc-web") ||
+		p.wrapped.IsGrpcWebRequest(r) ||
+		p.wrapped.IsAcceptableGrpcCorsRequest(r)
 }
 
 // ServeHTTP implements http.Handler and forwards gRPC-Web requests to the wrapped gRPC server.
