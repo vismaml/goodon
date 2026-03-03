@@ -77,3 +77,60 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 	}
 	return server.ListenAndServe()
 }
+
+// StartGRPCGatewayWithWeb starts a gateway that proxies both HTTP/JSON and gRPC-Web requests to gRPC calls.
+// It requires the gRPC server instance to wrap it for gRPC-Web support.
+// To start the gateway, call this function within a new goroutine.
+//
+// Example:
+//
+//	go func() {
+//		if err := goodon.StartGRPCGatewayWithWeb(grpcServer, cfg.GRPCPort, cfg.HTTPPort,
+//			pb.RegisterHandlerFromEndpoint,
+//		); err != nil && err != http.ErrServerClosed {
+//			log.Fatalf("failed to start HTTP gateway with gRPC-Web: %v", err)
+//		}
+//	}()
+func StartGRPCGatewayWithWeb(grpcServer *grpc.Server, grpcPort, httpPort string, registerFuncs ...RegisterFunc) error {
+	ctx := context.Background()
+
+	// gRPC-Gateway mux for HTTP/JSON to gRPC proxying
+	gatewayMux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   false,
+				EmitUnpopulated: false,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
+		}),
+		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
+	)
+
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	grpcEndpoint := "localhost:" + grpcPort
+
+	for _, register := range registerFuncs {
+		if err := register(ctx, gatewayMux, grpcEndpoint, opts); err != nil {
+			return err
+		}
+	}
+
+	// gRPC-Web proxy
+	grpcWebProxy := NewGRPCWebProxy(grpcServer)
+
+	// Combined handler that routes gRPC-Web requests to the gRPC-Web proxy,
+	// and all other requests to the gRPC-Gateway mux.
+	combinedHandler := grpcWebProxy.Handler(gatewayMux)
+
+	server := &http.Server{
+		Addr:         ":" + httpPort,
+		Handler:      combinedHandler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
+	}
+
+	return server.ListenAndServe()
+}
