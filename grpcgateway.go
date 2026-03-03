@@ -23,6 +23,14 @@ func customHeaderMatcher(key string) (string, bool) {
 	return runtime.DefaultHeaderMatcher(key)
 }
 
+// customOutgoingHeaderMatcher passes x-ratelimit-* headers through without the "Grpc-Metadata-" prefix.
+func customOutgoingHeaderMatcher(key string) (string, bool) {
+	if strings.HasPrefix(strings.ToLower(key), "x-ratelimit-") {
+		return key, true
+	}
+	return runtime.DefaultHeaderMatcher(key)
+}
+
 // allowCORS allows Cross-Origin Resource Sharing.
 func allowCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +69,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
+		runtime.WithOutgoingHeaderMatcher(customOutgoingHeaderMatcher),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := "localhost:" + grpcPort
