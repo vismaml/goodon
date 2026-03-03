@@ -23,6 +23,14 @@ func customHeaderMatcher(key string) (string, bool) {
 	return runtime.DefaultHeaderMatcher(key)
 }
 
+// customOutgoingHeaderMatcher passes x-ratelimit-* headers through without the "Grpc-Metadata-" prefix.
+func customOutgoingHeaderMatcher(key string) (string, bool) {
+	if strings.HasPrefix(strings.ToLower(key), "x-ratelimit-") {
+		return key, true
+	}
+	return runtime.DefaultHeaderMatcher(key)
+}
+
 // StartHTTPGateway starts a gateway that proxies requests to translate HTTP/JSON requests into gRPC calls.
 // To start the gateway, call this function within a new goroutine and provide the gRPC functions to register.
 //
@@ -49,6 +57,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
+		runtime.WithOutgoingHeaderMatcher(customOutgoingHeaderMatcher),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := "localhost:" + grpcPort
