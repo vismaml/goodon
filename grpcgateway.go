@@ -31,6 +31,18 @@ func customOutgoingHeaderMatcher(key string) (string, bool) {
 	return runtime.DefaultHeaderMatcher(key)
 }
 
+// allowCORS allows Cross-Origin Resource Sharing.
+func allowCORS(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
+}
+
 // StartHTTPGateway starts a gateway that proxies requests to translate HTTP/JSON requests into gRPC calls.
 // To start the gateway, call this function within a new goroutine and provide the gRPC functions to register.
 //
@@ -70,7 +82,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      mux,
+		Handler:      allowCORS(mux),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -126,7 +138,7 @@ func StartGRPCGatewayWithWeb(grpcServer *grpc.Server, grpcPort, httpPort string,
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      combinedHandler,
+		Handler:      allowCORS(combinedHandler),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,

@@ -15,10 +15,11 @@ type GRPCWebProxy struct {
 }
 
 // NewGRPCWebProxy creates a new gRPC-Web proxy wrapping the given gRPC server.
-// CORS is disabled (origin func returns false) so that an external layer (e.g. Istio) can handle it.
+// The proxy allows all origins and all request headers by default.
 func NewGRPCWebProxy(grpcServer *grpc.Server) *GRPCWebProxy {
 	wrapped := grpcweb.WrapServer(grpcServer,
-		grpcweb.WithOriginFunc(func(origin string) bool { return false }),
+		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
+		grpcweb.WithAllowedRequestHeaders([]string{"*"}),
 	)
 	return &GRPCWebProxy{wrapped: wrapped}
 }
