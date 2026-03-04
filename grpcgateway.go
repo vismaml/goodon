@@ -25,7 +25,8 @@ func customHeaderMatcher(key string) (string, bool) {
 
 // customOutgoingHeaderMatcher passes x-ratelimit-* headers through without the "Grpc-Metadata-" prefix.
 func customOutgoingHeaderMatcher(key string) (string, bool) {
-	if strings.HasPrefix(strings.ToLower(key), "x-ratelimit-") {
+	lowerKey := strings.ToLower(key)
+	if strings.HasPrefix(lowerKey, "x-ratelimit-") || lowerKey == "retry-after" {
 		return key, true
 	}
 	return runtime.DefaultHeaderMatcher(key)
