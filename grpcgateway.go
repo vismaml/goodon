@@ -8,7 +8,9 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -30,6 +32,23 @@ func customOutgoingHeaderMatcher(key string) (string, bool) {
 		return key, true
 	}
 	return runtime.DefaultHeaderMatcher(key)
+}
+
+// customErrorHandler maps gRPC ResourceExhausted errors caused by message size limits
+// to HTTP 413 (Request Entity Too Large) instead of the default 429 (Too Many Requests).
+// Rate-limit ResourceExhausted errors continue to map to 429.
+func customErrorHandler(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
+	st, ok := status.FromError(err)
+	if ok && st.Code() == codes.ResourceExhausted && strings.Contains(st.Message(), "received message larger than max") {
+		w.Header().Set("Content-Type", marshaler.ContentType(nil))
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		_ = marshaler.NewEncoder(w).Encode(map[string]string{
+			"code":    "RESOURCE_EXHAUSTED",
+			"message": st.Message(),
+		})
+		return
+	}
+	runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
 }
 
 // StartHTTPGateway starts a gateway that proxies requests to translate HTTP/JSON requests into gRPC calls.
@@ -59,6 +78,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
 		runtime.WithOutgoingHeaderMatcher(customOutgoingHeaderMatcher),
+		runtime.WithErrorHandler(customErrorHandler),
 	)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	grpcEndpoint := "localhost:" + grpcPort
@@ -107,6 +127,7 @@ func StartGRPCGatewayWithWeb(grpcServer *grpc.Server, grpcPort, httpPort string,
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
+		runtime.WithErrorHandler(customErrorHandler),
 	)
 
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
