@@ -91,7 +91,7 @@ func StartHTTPGateway(grpcPort, httpPort string, registerFuncs ...RegisterFunc) 
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      healthHandler(mux, grpcEndpoint),
+		Handler:      healthHandler(mux),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -148,7 +148,7 @@ func StartGRPCGatewayWithWeb(grpcServer *grpc.Server, grpcPort, httpPort string,
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      healthHandler(combinedHandler, grpcEndpoint),
+		Handler:      healthHandler(combinedHandler),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,
