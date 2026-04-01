@@ -10,11 +10,11 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// healthHandler wraps an http.Handler with /healthz and /readyz endpoints.
+// withHealthCheck wraps an http.Handler with /healthz and /readyz endpoints.
 // /healthz is a liveness probe that always returns 200.
 // /readyz is a readiness probe that checks the upstream gRPC server is reachable
 // and serving via the gRPC Health Checking Protocol.
-func healthHandler(next http.Handler, grpcEndpoint string) http.Handler {
+func withHealthCheck(next http.Handler, grpcEndpoint string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/healthz":
