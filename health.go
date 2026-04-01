@@ -2,6 +2,7 @@ package goodon
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -15,6 +16,13 @@ import (
 // /readyz is a readiness probe that checks the upstream gRPC server is reachable
 // and serving via the gRPC Health Checking Protocol.
 func withHealthCheck(next http.Handler, grpcEndpoint string) http.Handler {
+	conn, err := grpc.NewClient(grpcEndpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to create health check client: %v", err)
+	}
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/healthz":
@@ -22,32 +30,26 @@ func withHealthCheck(next http.Handler, grpcEndpoint string) http.Handler {
 			_, _ = w.Write([]byte("ok"))
 			return
 		case "/readyz":
-			if err := checkGRPCHealth(grpcEndpoint); err != nil {
+			resp, err := checkGRPCHealth(r.Context(), healthClient)
+			if err != nil {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
 			}
+			if resp.GetStatus() != grpc_health_v1.HealthCheckResponse_SERVING {
+				http.Error(w, resp.GetStatus().String(), http.StatusServiceUnavailable)
+				return
+			}
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok"))
+			_, _ = w.Write([]byte(resp.GetStatus().String()))
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
-// checkGRPCHealth dials the upstream gRPC server and calls the Health service.
-func checkGRPCHealth(endpoint string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+// checkGRPCHealth calls the gRPC Health Checking Protocol on the upstream server.
+func checkGRPCHealth(ctx context.Context, client grpc_health_v1.HealthClient) (*grpc_health_v1.HealthCheckResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-
-	conn, err := grpc.NewClient(endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	client := grpc_health_v1.NewHealthClient(conn)
-	_, err = client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
-	return err
+	return client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 }
