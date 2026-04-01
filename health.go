@@ -26,10 +26,6 @@ func withHealthCheck(next http.Handler, grpcEndpoint string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/healthz":
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok"))
-			return
-		case "/readyz":
 			resp, err := checkGRPCHealth(r.Context(), healthClient)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
