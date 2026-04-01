@@ -96,7 +96,7 @@ func initMeterProvider(serviceName string, collectorIP string) (func() error, er
 	}
 
 	// Create metric reader with periodic export to the collector
-	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(60*time.Second))
+	reader := metric.NewPeriodicReader(otlpExporter, metric.WithInterval(20*time.Second))
 
 	resources, err := newResources(ctx, serviceName)
 	if err != nil {
