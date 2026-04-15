@@ -1,6 +1,6 @@
 module github.com/vismaml/goodon
 
-go 1.26.2
+go 1.25.8
 
 require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0
