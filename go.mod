@@ -19,7 +19,6 @@ require (
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.11.7 // indirect
-	github.com/openzipkin/zipkin-go v0.2.2 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.32.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
@@ -36,10 +35,10 @@ require (
 )
 
 require (
-	github.com/e-conomic/ctxtrace v1.0.3
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/vismaml/ctxtrace v1.0.10
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.56.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.32.0
