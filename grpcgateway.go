@@ -34,6 +34,57 @@ func customOutgoingHeaderMatcher(key string) (string, bool) {
 	return runtime.DefaultHeaderMatcher(key)
 }
 
+func withLegacyRateLimitHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&legacyHeaderMirror{ResponseWriter: w}, r)
+	})
+}
+
+type legacyHeaderMirror struct {
+	http.ResponseWriter
+	done bool
+}
+
+func (m *legacyHeaderMirror) WriteHeader(statusCode int) {
+	m.mirror()
+	m.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (m *legacyHeaderMirror) Write(b []byte) (int, error) {
+	m.mirror()
+	return m.ResponseWriter.Write(b)
+}
+
+func (m *legacyHeaderMirror) Flush() {
+	if flusher, ok := m.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (m *legacyHeaderMirror) Unwrap() http.ResponseWriter {
+	return m.ResponseWriter
+}
+
+func (m *legacyHeaderMirror) mirror() {
+	if m.done {
+		return
+	}
+	m.done = true
+	headers := m.ResponseWriter.Header()
+	legacy := map[string][]string{}
+	for key, values := range headers {
+		lowerKey := strings.ToLower(key)
+		if strings.HasPrefix(lowerKey, "x-ratelimit-") || lowerKey == "retry-after" {
+			legacy["Grpc-Metadata-"+key] = values
+		}
+	}
+	for key, values := range legacy {
+		for _, value := range values {
+			headers.Add(key, value)
+		}
+	}
+}
+
 // customErrorHandler maps gRPC ResourceExhausted errors caused by message size limits
 // to HTTP 413 (Request Entity Too Large) instead of the default 429 (Too Many Requests).
 // Rate-limit ResourceExhausted errors continue to map to 429.
@@ -145,7 +196,7 @@ func StartGRPCGatewayWithWeb(grpcServer *grpc.Server, grpcPort, httpPort string,
 
 	// Combined handler that routes gRPC-Web requests to the gRPC-Web proxy,
 	// and all other requests to the gRPC-Gateway mux.
-	combinedHandler := grpcWebProxy.Handler(gatewayMux)
+	combinedHandler := grpcWebProxy.Handler(withLegacyRateLimitHeaders(gatewayMux))
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
