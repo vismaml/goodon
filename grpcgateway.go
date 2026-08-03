@@ -127,6 +127,7 @@ func StartGRPCGatewayWithWeb(grpcServer *grpc.Server, grpcPort, httpPort string,
 			},
 		}),
 		runtime.WithIncomingHeaderMatcher(customHeaderMatcher),
+		runtime.WithOutgoingHeaderMatcher(customOutgoingHeaderMatcher),
 		runtime.WithErrorHandler(customErrorHandler),
 	)
 
