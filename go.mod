@@ -1,6 +1,6 @@
 module github.com/vismaml/goodon
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0
@@ -18,7 +18,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/klauspost/compress v1.18.7 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.32.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
